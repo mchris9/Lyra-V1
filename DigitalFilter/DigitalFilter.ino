@@ -1,50 +1,54 @@
-#define a0_lpf 0.005303
-#define a1_lpf 0.01061
-#define a2_lpf 0.005303
-#define b1_lpf -1.709
-#define b2_lpf 0.7299
-#define a0_hpf 0.739018
-#define a1_hpf -2.95607
-#define a2_hpf 4.43411
-#define a3_hpf -2.95607
-#define a4_hpf 0.739018
-#define b1_hpf -3.41744
-#define b2_hpf 4.37958
-#define b3_hpf -2.49449
-#define b4_hpf 0.532797
+#define a0_lpf 0.007992
+#define a1_lpf 0.01598
+#define a2_lpf 0.007992
+#define b1_lpf -1.642
+#define b2_lpf 0.6744
+#define a0_hpf 0.8292
+#define a1_hpf -1.658
+#define a2_hpf 0.8292
+#define b1_hpf -1.642
+#define b2_hpf 0.6744
+
+#define SET_OUTPUT_A 0x1000
+#define SET_OUTPUT_B 0x1000
 
 float t = 0;
-float input[5] = {0, 0, 0, 0, 0};
+int n = 2;
+int ADC = 1;
+float input[3] = {0, 0, 0};
 float output_low[3] = {0, 0, 0};
-float output_high[5] = {0, 0, 0, 0, 0};
+float output_high[3] = {0, 0, 0};
 
 void setup() {
   // put your setup code here, to run once:
+  pinMode(53, OUTPUT);
+  SPI.begin();
   Serial.begin(9600);
-  
 }
 
 void loop() {
 	// put your main code here, to run repeatedly:
-	t += .0000125;
-	input[4] = sin(2*PI*100*t)+sin(2*PI*10000*t);
+	input[n] = analogRead(ADC);
+	output_low[n] = -(b2_lpf*output_low[n-2] + b1_lpf*output_low[n-1]) + (a2_lpf*input[n-2] + a1_lpf*input[n-1] + a0_lpf*input[n]);
+	output_high[n] = -(b2_hpf*output_high[n-2] + b1_hpf*output_high[n-1]) + (a2_hpf*input[n-2] + a1_hpf*input[n-1] + a0_hpf*input[n]);
 	
-	//output_low[2] = -(b2_lpf*output_low[0] + b1_lpf*output_low[1]) + (a2_lpf*input[2] + a1_lpf*input[1] + a0_lpf*input[0]);
-	output_high[4] = -(b4_hpf*output_high[0] + b3_hpf*output_high[1] + b2_hpf*output_high[2] + b1_hpf*output_high[3]) + (a4_hpf*input[4] + a3_hpf*input[3] + a2_hpf*input[2] + a1_hpf*input[1] + a0_hpf*input[0]);
-	
-	input[0] = input[1];
-	output_high[0] = output_high[1];
-	input[1] = input[2];
-	output_high[1] = output_high[2];
-  input[2] = input[3];
-  output_high[2] = output_high[3];
-  input[3] = input[4];
-  output_high[3] = output_high[4];
+	input[n-2] = input[n-1];
+	output_high[n-2] = output_high[n-1];
+  output_low[n-2] = output_low[n-1];
+	input[n-1] = input[n];
+	output_high[n-1] = output_high[n];
+  output_low[n-1] = output_low[n];
+
+  SPI.beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE0));
+  digitalWrite(53, LOW);
+  SPI.transfer16(SET_OUTPUT_A | (1000 + round(1000*output_low[n]));
+  digitalWrite(53, HIGH);
+
+  SPI.beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE0));
+  digitalWrite(53, LOW);
+  SPI.transfer16(SET_OUTPUT_B | (1000 + round(1000*output_high[n]));
+  digitalWrite(53, HIGH);
   
-	//Serial.print(input[2]);
-	//Serial.print(" ");
-	//Serial.print(output_low[2]);
-	//Serial.print(" ");
-	Serial.println(output_high[4]);
+  //print to an output here
 	delayMicroseconds(12.5);
 }
